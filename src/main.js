@@ -19,18 +19,10 @@ async function sendTelegramMessage(token, chatId, message) {
         text: message
     };
     try {
-        const response = await axios.post(url, data);
-        // console.log('消息已发送到 Telegram:', response.data);
+        await axios.post(url, data);
         console.log('消息已发送到 Telegram');
     } catch (error) {
-        // if (error.response) {
-        //     console.error('发送 Telegram 消息时出错:', error.response.status, error.response.data);
-        // } else if (error.request) {
-        //     console.error('发送 Telegram 消息时出错:', error.request);
-        // } else {
-        //     console.error('发送 Telegram 消息时出错:', error.message);
-        // }
-        console.error('Telegram 消息发生失败');
+        console.error('Telegram 消息发送失败');
     }
 }
 
@@ -40,39 +32,28 @@ async function sendTelegramMessage(token, chatId, message) {
     const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
     const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
-    for (const account of accounts) {
-        const { username, password, panel } = account;
+    const panelBaseUrl = "panel"; // 基础域名前缀
+    const panelDomain = "example.com"; // 你的主域名，例如 "serv00.com"
 
-        // 显示浏览器窗口&使用自定义窗口大小
-        const browser = await puppeteer.launch({ 
-            headless: false, 
-            // args: [
-            //     '--no-sandbox',
-            //     '--disable-setuid-sandbox',
-            //     '--disable-dev-shm-usage',
-            //     '--disable-infobars',
-            //     '--disable-blink-features=AutomationControlled'
-            // ],
-            // defaultViewport: null,
-            // ignoreHTTPSErrors: true
+    for (const account of accounts) {
+        const { username, password, panelnum } = account;
+
+        // 拼接 panel 地址
+        const panel = `${panelBaseUrl}${panelnum}.${panelDomain}`;
+        const url = `https://${panel}/login/?next=/`;
+
+        console.log(`尝试登录账号 ${username}，地址: ${url}`);
+
+        const browser = await puppeteer.launch({
+            headless: true, // 使用无头模式
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
         const page = await browser.newPage();
-        // await page.setViewport({ width: 1366, height: 768 });
-        // await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36');
-        // await page.evaluateOnNewDocument(() => {
-        //     delete Object.getPrototypeOf(navigator).webdriver;
-        // });
-
-        let url = `https://${panel}/login/?next=/`;
 
         try {
-            await page.goto(url);
+            await page.goto(url, { waitUntil: 'networkidle2' });
 
-            const usernameInput = await page.$('#id_username');
-            if (usernameInput) {
-                await usernameInput.click({ clickCount: 3 });
-                await usernameInput.press('Backspace');
-            }
+            // 填写账号和密码
             await page.type('#id_username', username);
             await page.type('#id_password', password);
 
@@ -83,40 +64,32 @@ async function sendTelegramMessage(token, chatId, message) {
                 throw new Error('无法找到登录按钮');
             }
 
-            await page.waitForNavigation();
+            await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
+            // 检查是否登录成功
             const isLoggedIn = await page.evaluate(() => {
-                const logoutButton = document.querySelector('a[href="/logout/"]');
-                return logoutButton !== null;
+                return document.querySelector('a[href="/logout/"]') !== null;
             });
 
+            const nowUtc = formatToISO(new Date());
+            const nowBeijing = formatToISO(new Date(new Date().getTime() + 8 * 60 * 60 * 1000)); // 北京时间
+
             if (isLoggedIn) {
-                const nowUtc = formatToISO(new Date());
-                const nowBeijing = formatToISO(new Date(new Date().getTime() + 8 * 60 * 60 * 1000)); // 北京时间东8区
-                console.log(`账号 ${username} 于北京时间 ${nowBeijing}（UTC时间 ${nowUtc}）登录成功！`);
+                console.log(`账号 ${username} 于北京时间 ${nowBeijing} 登录成功`);
                 if (telegramToken && telegramChatId) {
-                    await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 于北京时间 ${nowBeijing}（UTC时间 ${nowUtc}）登录成功！`);
+                    await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 于北京时间 ${nowBeijing} 登录成功！`);
                 }
             } else {
-                console.error(`账号 ${username} 登录失败，请检查账号和密码是否正确。`);
-                if (telegramToken && telegramChatId) {
-                    await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 登录失败，请检查账号和密码是否正确。`);
-                }
+                throw new Error('登录失败，未找到退出按钮');
             }
         } catch (error) {
-            console.error(`账号 ${username} 登录时出现错误: ${error}`);
+            console.error(`账号 ${username} 登录时出现错误: ${error.message}`);
             if (telegramToken && telegramChatId) {
-                await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 登录时出现错误: ${error.message}`);
+                await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 登录失败: ${error.message}`);
             }
         } finally {
-            // 模拟人类行为
-            // await page.waitForTimeout(1000 + Math.floor(Math.random() * 2000)); 
-            // await page.type('#id_username', 'testuser', { delay: 100 + Math.floor(Math.random() * 100) });
-            // await page.click('#submit');
-            // await page.waitForNavigation();
-            await page.close();
             await browser.close();
-            const delay = Math.floor(Math.random() * 5000) + 1000; // 随机延时1秒到5秒之间
+            const delay = Math.floor(Math.random() * 5000) + 1000; // 随机延时1-5秒
             await delayTime(delay);
         }
     }
