@@ -33,7 +33,7 @@ async function sendTelegramMessage(token, chatId, message) {
     const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
     const panelBaseUrl = "panel"; // 基础域名前缀
-    const panelDomain = "example.com"; // 你的主域名，例如 "serv00.com"
+    const panelDomain = "serv00.com"; // 你的主域名，例如 "serv00.com"
 
     for (const account of accounts) {
         const { username, password, panelnum } = account;
