@@ -32,6 +32,8 @@ async function sendTelegramMessage(token, chatId, message) {
     const panelBaseUrl = "panel"; // panel 基础前缀
     const defaultDomain = "serv00.com"; // 默认主域名
 
+    const loginResults = []; // 存储所有账号的登录结果
+
     for (const account of accounts) {
         const { username, password, panelnum, domain } = account;
 
@@ -85,22 +87,16 @@ async function sendTelegramMessage(token, chatId, message) {
             const nowUtc = formatToISO(new Date());
             const nowBeijing = formatToISO(new Date(new Date().getTime() + 8 * 60 * 60 * 1000)); // 北京时间
 
-            if (isLoggedIn) {
-                console.log(`账号 ${username} 于北京时间 ${nowBeijing}（UTC时间 ${nowUtc}）登录成功！`);
-                if (telegramToken && telegramChatId) {
-                    await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 于北京时间 ${nowBeijing}（UTC时间 ${nowUtc}）登录成功！`);
-                }
-            } else {
-                console.error(`账号 ${username} 登录失败，请检查账号和密码是否正确。`);
-                if (telegramToken && telegramChatId) {
-                    await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 登录失败，请检查账号和密码是否正确。`);
-                }
-            }
+            const serverName = domain === "ct8.pl" ? "ct8" : `serv00-${panelnum}`;
+            const status = isLoggedIn ? "登录成功" : "登录失败";
+
+            loginResults.push(`账号（${username}）（${serverName}）${status}`);
+
+            console.log(`账号 ${username} 于北京时间 ${nowBeijing}（UTC时间 ${nowUtc}）${status}`);
         } catch (error) {
+            const serverName = domain === "ct8.pl" ? "ct8" : `serv00-${panelnum}`;
+            loginResults.push(`账号（${username}）（${serverName}）登录时出现错误: ${error.message}`);
             console.error(`账号 ${username} 登录时出现错误: ${error.message}`);
-            if (telegramToken && telegramChatId) {
-                await sendTelegramMessage(telegramToken, telegramChatId, `账号 ${username} 登录时出现错误: ${error.message}`);
-            }
         } finally {
             await page.close();
             await browser.close();
@@ -108,5 +104,17 @@ async function sendTelegramMessage(token, chatId, message) {
             await delayTime(delay);
         }
     }
+
+    // 汇总并发送报告
+    const reportTitle = "ct8&serv00登陆报告：";
+    const reportContent = loginResults.join('\n');
+    const finalReport = `${reportTitle}\n${reportContent}`;
+
+    console.log(finalReport);
+
+    if (telegramToken && telegramChatId) {
+        await sendTelegramMessage(telegramToken, telegramChatId, finalReport);
+    }
+
     console.log('所有账号登录完成！');
 })();
