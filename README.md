@@ -42,9 +42,9 @@
 
 ``` json
 [  
-  { "username": "qishihuang", "password": "zhanghao", "panelnum": "11" },  
-  { "username": "zhaogao", "password": "daqinzhonggong", "panelnum": "12" },  
-  { "username": "heiheihei", "password": "已有ct8代码,自己没这个需求，没更新上来", "原版突然坏了，自己修改后": "暂不支持ct8" }  
+  { "username": "qishihuang", "password": "zhanghao", "panelnum": "11","domain": "serv00.com" },  
+  { "username": "zhaogao", "password": "daqinzhonggong", "panelnum": "12","domain": "serv00.com" },  
+  { "username": "user_ct8", "password": "example-password", "domain": "ct8.pl" }  
 ]
 ```
 
