@@ -47,7 +47,11 @@ async function sendTelegramMessage(token, chatId, message) {
         console.log(`尝试登录账号 ${username}，地址: ${url}`);
 
         // 启动 Puppeteer
-        const browser = await puppeteer.launch({ headless: false });
+        const browser = await puppeteer.launch({
+            headless: true, // 设置为 true 以便在无界面环境运行
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // 如果有指定路径
+        });
         const page = await browser.newPage();
 
         try {
